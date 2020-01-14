@@ -1,0 +1,24 @@
+version: 0.2
+
+# CodeBuildのビルド処理を規定
+
+phases:
+  # 使用するDockerのランタイムバージョンを指定
+  install:
+    runtime-versions:
+      docker: 18
+  # ECRにログイン
+  pre_build:
+    commands:
+    - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email) # Dockerクライアントを認証
+    - REPO=$(aws ecr describe-repositories --repository-names example --output text --query "repositories[0].repositoryUri") # ビルドするイメージのリポジトリURIを取得
+    - IMAGE=$REPO:latest # ビルドするイメージの名前を環境変数に入れる
+  build:
+    commands:
+    - docker build -t $IMAGE .
+    - docker push $IMAGE
+  post_build:
+    commands:
+    - printf '[{"name":"example", "imageUri":"%s"}]' $IMAGE > imagedefinitions.json
+artifacts:
+  files: imagedefinitions.json
